@@ -1,15 +1,34 @@
-# PoKey Scan secure backend (not yet deployed)
+# Deploy PoKey Scan — owner checklist
 
-The static GitHub Pages site cannot securely call a paid image-recognition API directly. This Cloudflare Worker provides a server-side endpoint at POST /scan.
+The frontend is live on GitHub Pages, but the scanner backend is **not deployed**. The old OCR has been retired.
 
-## Deployment
-1. Create a Cloudflare Worker and upload worker.js.
-2. Configure the secret OPENAI_API_KEY (never put it in index.html, GitHub commits, or browser settings).
-3. Set ALLOWED_ORIGIN=https://kckrick.github.io.
-4. Deploy the Worker and enter its public HTTPS URL in the website's scanner configuration.
-5. Test moderation rejection, non-deck rejection, image recognition, quantities, and printings before enabling public use.
+## 1. Cloudflare Worker
+1. Open https://dash.cloudflare.com/ and sign in.
+2. Go to **Workers & Pages** and create a Worker.
+3. Replace the Worker source with the repository's `worker.js` file, then deploy.
+4. In Worker **Settings → Variables and Secrets**, create a **secret** named `OPENAI_API_KEY` with an API key you create in your own OpenAI API account. Never share this key in chat, commit it, or put it in the website.
+5. Add a plain-text variable named `ALLOWED_ORIGIN` with the exact value `https://kckrick.github.io`.
+6. Set rate limits, usage limits, and abuse protection. Do not launch publicly before these are active.
+7. Copy the public Worker HTTPS URL and append `/scan`.
 
-## Security and accuracy
-The Worker rejects oversized/non-image requests, checks origin, calls image moderation, rejects non-card scenes with a visual classifier, and returns unverified structured card candidates. It does not store images. The upstream AI provider still receives images for processing; review its data handling and privacy terms before production. CORS is not authentication or rate limiting: enable Cloudflare rate limiting, bot protection, and usage quotas before public release. Moderation cannot perfectly detect all inappropriate content.
+## 2. Connect the website
+1. Open https://kckrick.github.io/pokey-decks/
+2. Expand **Advanced tools and card database**.
+3. Paste the Worker URL ending in `/scan` into **Scanner service URL**, then tap **Connect scanner**.
+4. Reload the website. The scanner can now call the Worker.
 
-The model's results are NEVER sufficient to approve a tournament export. A separate card database lookup and exact-printing validation must reconcile all entries and quantities. Uncertain or missing quantities must block export. Run tests with real images, including the Team Rocket 24-position example. This is scaffolding, not a tested production service.
+## 3. Verify before real use
+- Test rejection of unrelated images, explicit content, oversized images, and non-deck screenshots. Automated moderation is imperfect.
+- Test the Team Rocket screenshot; reconcile all 24 entries and 60 total cards, including each quantity and exact printing.
+- Validate against a card database independently. The Worker currently returns unverified AI guesses; the website deliberately blocks importing them.
+- Confirm actual PTCGL import compatibility and tournament-format legality.
+- Do not describe the app as tournament-ready until these tests pass.
+
+## Privacy and cost
+The frontend does not upload images while no Worker is configured. Once connected, the image is transmitted to your Worker and the configured AI provider for processing. The Worker code does not intentionally store uploaded images, but you must review Cloudflare and provider logging, data retention, and privacy terms before public launch. The service may incur usage charges. Origin/CORS checks are not sufficient to prevent abuse; require server-side rate limiting and authentication or equivalent abuse protections.
+
+## Known technical limitations
+- The current intake only supports wide 8-by-3 grid screenshots; other decklist layouts need separate support.
+- Visual model output is not proof of exact card identity, quantity, printing, or legality.
+- Missing quantity and uncertain printing must remain blocked from tournament export.
+- No deployed Worker or live end-to-end tests have been completed yet.
