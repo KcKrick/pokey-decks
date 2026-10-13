@@ -1,0 +1,6 @@
+name = "pokey-scan"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+ALLOWED_ORIGIN = "https://kckrick.github.io"
