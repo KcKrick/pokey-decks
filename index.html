@@ -7,16 +7,16 @@
  .upload-control,.camera-control{border:1px solid #486281;border-radius:14px;padding:16px;margin-top:16px;background:#172c4a}.upload-control label,.camera-control label{display:block;font-weight:750;margin-bottom:12px}.upload-control input[type=file],.camera-control input[type=file]{display:block!important;width:100%;max-width:100%;font-size:16px;color:#fff;background:#223a5b}.upload-control input[type=file]::file-selector-button,.camera-control input[type=file]::file-selector-button{background:#397cf1;color:#fff;border:0;border-radius:9px;padding:12px;margin-right:10px;font:inherit} </style>
 <header><div class="brand"><div class="brand-mark">P</div><div><h1>PoKey Decks</h1><span class="small">Build smarter. Play confidently.</span></div></div></header>
 <main>
-<section class="hero" id="scanTop"><div class="scan-step">DECK SCANNER · EXPERIMENTAL</div><h2>From screenshot to decklist.</h2><p>Upload a deck image. Review matches before adding cards.</p>
+<section class="hero" id="scanTop"><div class="scan-step">FREE DECK SCANNER · EARLY TEST</div><h2>From screenshot to decklist.</h2><p>Upload a deck image. Review matches before adding cards.</p>
 <div class="upload-control"><label for="photo"><strong>Choose a deck screenshot</strong></label><input type="file" accept="image/png,image/jpeg,image/webp" id="photo" aria-label="Choose a deck screenshot from Photos or Files"><p class="small">Tap Choose File, then Photo Library or Browse. Your selected image will appear below.</p></div>
 <div class="tools"><div class="camera-control"><label for="camera">📷 Take a photo</label><input type="file" accept="image/jpeg,image/png" capture="environment" id="camera"></div></div>
-<p class="small">Upload Pokémon card images only. When scanning is enabled, images will be screened by the service before recognition. Do not upload sensitive photos.</p><p class="small">Scans use a remote recognition service. Results must be reviewed; never trust an unverified export.</p><img id="scanPreview" alt="Selected deck screenshot" style="display:none;max-width:100%;max-height:420px;border-radius:10px">
+<p class="small">Upload Pokémon card images only. Choose a deck-only screenshot. Automated detection of unrelated or inappropriate content is not yet reliable, so do not select sensitive photos.</p><p class="small">The free reader runs on your device; screenshots are not sent to our server. Results require manual verification.</p><img id="scanPreview" alt="Selected deck screenshot" style="display:none;max-width:100%;max-height:420px;border-radius:10px">
 <div class="scan-actions"><button id="scanRun">Scan image</button><button id="scanApply" disabled>Add verified selections</button></div>
 <p id="scanStatus" class="warning" role="status">Select a screenshot above to begin. Image recognition is experimental.</p>
 <div id="scanReview" class="scan-review"></div><details class="advanced"><summary>About scan accuracy</summary><p class="small">This scanner is experimental. It may miss cards and quantities. Do not use it as your only tournament decklist check.</p></details>
 
 </section>
-<details class="advanced"><summary>⚙ Advanced tools and card database</summary><div class="tools"><label>Scanner service URL <input id="scannerEndpoint" type="url" placeholder="https://your-worker.workers.dev/scan" autocomplete="off"></label><button id="saveEndpoint">Connect scanner</button></div><p class="small">Only enter your public Cloudflare Worker URL here. Never enter an API key. The URL is saved on this device.</p><div class="tools"><label>Import card catalog JSON <input id="import" type="file" accept=".json" multiple></label><button id="sync">Sync English catalog</button><button id="backup">Download backup</button><span id="status" class="small">Search the English card database below.</span></div></details>
+<details class="advanced"><summary>⚙ Advanced tools and card database</summary><div class="tools"><label>Scanner service URL <input id="scannerEndpoint" type="url" placeholder="https://your-worker.workers.dev/scan" autocomplete="off"></label><button id="saveEndpoint">Connect scanner</button></div><p class="small">The free scanner does not use a Cloudflare recognition endpoint. The URL is saved on this device.</p><div class="tools"><label>Import card catalog JSON <input id="import" type="file" accept=".json" multiple></label><button id="sync">Sync English catalog</button><button id="backup">Download backup</button><span id="status" class="small">Search the English card database below.</span></div></details>
 <h2 class="section-label">Build &amp; export</h2><div class="layout"><section><h2>Find cards <span id="count" class="small"></span></h2><div class="tools"><input id="search" placeholder="Name, attack, ability, effect"><select id="format"><option value="all">All cards</option><option value="standard">Verified Standard only</option></select><select id="type"><option value="">All types</option><option>Grass</option><option>Fire</option><option>Water</option><option>Lightning</option><option>Psychic</option><option>Fighting</option><option>Darkness</option><option>Metal</option><option>Dragon</option><option>Colorless</option></select></div><div id="cards" class="cards"></div><button id="more">Show more</button></section>
 <section><h2>Deck <span id="total">0/60</span></h2><input id="deckname" value="My Deck" aria-label="Deck name"><div class="tools"><button id="save">Save</button><button id="load">Load</button><button id="clear">Clear</button></div><div id="deck"></div><h3>Checks</h3><div id="checks" class="small"></div><h3>3 · Export to PTCGL</h3><button id="export">Verify & Generate</button><p id="exportStatus" class="small">Export requires online verification of each card printing.</p> <button id="copy">Copy</button><textarea id="output" aria-label="Decklist export"></textarea><p class="small">PTCGL export requires verified card printings. Import compatibility still needs testing.</p></section></div></main>
 <script>
@@ -50,7 +50,43 @@ async function loadOCR(){if(window.Tesseract)return;await new Promise((resolve,r
 async function scanGridImage(file){const image=await createImageBitmap(file);const ratio=image.width/image.height;if(ratio<1.45||ratio>2.5)throw Error('Grid detector expects a wide 8-column × 3-row screenshot. Try cropping the image to the deck grid.');const rows=3,cols=8,results=[];for(let row=0;row<rows;row++)for(let col=0;col<cols;col++){const x=Math.round(col*image.width/cols),y=Math.round(row*image.height/rows),w=Math.round(image.width/cols),hh=Math.round(image.height/rows);const canvas=document.createElement('canvas');canvas.width=w*3;canvas.height=Math.round(hh*.35)*3;const ctx=canvas.getContext('2d');ctx.imageSmoothingEnabled=true;ctx.drawImage(image,x,y,w,hh*.35,0,0,canvas.width,canvas.height);results.push({canvas,row,col})}return results}
 function bestCardName(raw,known){const clean=s=>String(s).toLowerCase().replace(/[^a-z0-9]/g,'');const txt=clean(raw);return known.find(c=>txt.includes(clean(c.name)))}
 async function encodeImage(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=()=>reject(Error('Could not read image'));reader.readAsDataURL(file)})}
-el('scanRun').onclick=async()=>{if(!scanFile)return el('scanStatus').textContent='Choose a deck screenshot first.';if(!SCAN_API_URL){el('scanStatus').textContent='The improved visual scanner is not online yet. The old OCR scanner has been retired because it was inaccurate. No image was uploaded.';return}const btn=el('scanRun');btn.disabled=true;scanMatches=[];scanRows();try{el('scanStatus').textContent='Screening image and identifying cards securely…';const response=await fetch(SCAN_API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mime:scanFile.pokeyMime||scanFile.type,image:await encodeImage(scanFile)})});const data=await response.json();if(!response.ok)throw Error(data.error||'Image was rejected');if(!Array.isArray(data.cards))throw Error('Invalid recognition response');scanMatches=data.cards.map(c=>({id:'',name:c.name,qty:c.quantity||1,checked:false,unverified:true,confidence:c.confidence,setCode:c.setCode,number:c.number}));scanRows();el('scanApply').disabled=true;el('scanStatus').textContent='Visual scan returned '+scanMatches.length+' candidates (reported total '+data.total+'). This is an unverified preview, not an exportable deck. Check every name and quantity against the screenshot.'}catch(err){scanMatches=[];scanRows();el('scanStatus').textContent='Scan unavailable: '+err.message}finally{btn.disabled=false}};
+// Free on-device OCR: no paid API, no image upload.
+async function localDeckOCR(file){
+  await loadOCR();
+  const cells=await scanGridImage(file);
+  const worker=await Tesseract.createWorker('eng',1,{logger:m=>{if(m.status==='recognizing text')el('scanStatus').textContent='Reading card names on your device… '+Math.round(m.progress*100)+'% of current card';}});
+  const output=[];
+  try{
+    await worker.setParameters({tessedit_pageseg_mode:Tesseract.PSM.SINGLE_LINE});
+    for(let i=0;i<cells.length;i++){
+      const cell=cells[i];
+      el('scanStatus').textContent='Reading card '+(i+1)+' of '+cells.length+' locally…';
+      const {data}=await worker.recognize(cell.canvas);
+      const raw=(data.text||'').replace(/\s+/g,' ').trim();
+      output.push({position:i+1,raw,confidence:Math.max(0,Math.min(1,(data.confidence||0)/100))});
+      await new Promise(resolve=>setTimeout(resolve,0));
+    }
+  }finally{await worker.terminate()}
+  return output;
+}
+el('scanRun').onclick=async()=>{
+  if(!scanFile)return el('scanStatus').textContent='Choose a deck screenshot first.';
+  const btn=el('scanRun');btn.disabled=true;scanMatches=[];scanRows();
+  try{
+    el('scanStatus').textContent='Loading free on-device card reader…';
+    const cells=await localDeckOCR(scanFile);
+    const names=[...new Set(catalog.map(c=>c.name).filter(Boolean))];
+    scanMatches=cells.map(c=>{
+      const candidate=bestCardName(c.raw,names.map(name=>({name})));
+      return {id:'',name:candidate?.name||c.raw||'Unrecognized card',qty:1,checked:false,unverified:true,confidence:c.confidence,setCode:null,number:null};
+    });
+    scanRows();
+    el('scanApply').disabled=true;
+    const readable=cells.filter(c=>c.raw.length>=4).length;
+    el('scanStatus').textContent='Free local scan finished: '+readable+' of 24 positions had readable text. Names and quantities are NOT verified. Nothing was added. Review the screenshot and use Find cards to build your deck.';
+  }catch(err){scanMatches=[];scanRows();el('scanStatus').textContent='Local scan could not finish: '+err.message+'. Try a tightly cropped, clear 8×3 deck-grid screenshot.'}
+  finally{btn.disabled=false}
+};
 el('scanApply').onclick=async()=>{if(scanMatches.some(m=>!m.id||m.unverified))return el('scanStatus').textContent='Import blocked: card printings are not verified.';if(scanMatches.length!==24)return el('scanStatus').textContent='Import blocked: the scan identified fewer than 24 cards. Do not use this incomplete result.';const selected=scanMatches.filter(m=>m.checked);if(selected.length!==24)return el('scanStatus').textContent='Import blocked: review and approve all 24 positions first.';if(!selected.length)return el('scanStatus').textContent='Select at least one reviewed card first.';let added=0,failed=[];for(const m of selected){try{const r=await fetch('https://api.tcgdex.net/v2/en/cards/'+encodeURIComponent(m.id));if(!r.ok)throw Error('not found');const d=await r.json();if(String(d.name).toLowerCase()!==m.name.toLowerCase())throw Error('name mismatch');const c=normalize({...d,number:d.localId,supertype:d.category,set:{id:d.set?.id,name:d.set?.name,ptcgoCode:d.set?.tcgOnline},images:{small:d.image?d.image+'/low.webp':''}});if(!c.number)throw Error('no collector number');const i=catalog.findIndex(x=>x.id===c.id);if(i>=0)catalog[i]=c;else catalog.push(c);deck[c.id]=(deck[c.id]||0)+m.qty;added+=m.qty}catch(e){failed.push(m.name+': '+e.message)}}persist();render();el('scanStatus').textContent='Added '+added+' reviewed cards. '+(failed.length?'Unmatched: '+failed.join('; '):'Use Verify & Generate once the deck reaches 60 cards.')};
 
 el('backup').onclick=()=>{let blob=new Blob([JSON.stringify({cards:catalog,deck,name:el('deckname').value},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pokey-backup.json';a.click();URL.revokeObjectURL(a.href)};
