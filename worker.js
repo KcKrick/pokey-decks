@@ -25,4 +25,4 @@ if(!Array.isArray(parsed.cards)||parsed.cards.length<1||parsed.cards.length>100)
 const cards=parsed.cards.map(c=>({name:typeof c.name==='string'?c.name.slice(0,120):'',quantity:Number.isInteger(c.quantity)&&c.quantity>=1&&c.quantity<=60?c.quantity:null,setCode:typeof c.setCode==='string'?c.setCode.slice(0,20):null,number:typeof c.number==='string'?c.number.slice(0,20):null,confidence:Math.min(1,Math.max(0,Number(c.confidence)||0))}));
 const uncertain=cards.some(c=>!c.name||c.quantity===null||c.confidence<0.9);const total=cards.reduce((n,c)=>n+(c.quantity||0),0);return new Response(JSON.stringify({cards,needsReview:true,complete:!uncertain&&total===60,total,warning:'AI results are unverified. Confirm each card and printing against the original image.'}),{headers:h});
 }catch{return fail(502,'Image processing failed. Please try again later.',h)}
-}}};
+}};
